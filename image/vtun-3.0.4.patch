@@ -1,0 +1,334 @@
+diff -Naur vtun-3.0.4/cfg_file.y vtun-3.0.4-updated/cfg_file.y
+--- vtun-3.0.4/cfg_file.y	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/cfg_file.y	2026-03-11 11:13:52.091644367 +0100
+@@ -610,7 +610,7 @@
+ }
+ 
+ /* Clear the VTUN_NAT_HACK flag which are not relevant to the current operation mode */
+-inline void clear_nat_hack_flags(int svr)
++void clear_nat_hack_flags(int svr)
+ {
+ 	if (svr)
+ 		llist_trav(&host_list,clear_nat_hack_server,NULL);
+diff -Naur vtun-3.0.4/generic/pty_dev.c vtun-3.0.4-updated/generic/pty_dev.c
+--- vtun-3.0.4/generic/pty_dev.c	2016-10-01 23:37:39.000000000 +0200
++++ vtun-3.0.4-updated/generic/pty_dev.c	2026-03-11 11:13:52.091869924 +0100
+@@ -20,6 +20,7 @@
+  * $Id: pty_dev.c,v 1.4.2.3 2016/10/01 21:37:39 mtbishop Exp $
+  */ 
+ 
++#define _GNU_SOURCE
+ #include "config.h"
+ 
+ #include <unistd.h>
+@@ -28,6 +29,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <syslog.h>
++#include <stdlib.h>
+ 
+ #include "vtun.h"
+ #include "lib.h"
+diff -Naur vtun-3.0.4/lfd_encrypt.c vtun-3.0.4-updated/lfd_encrypt.c
+--- vtun-3.0.4/lfd_encrypt.c	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/lfd_encrypt.c	2026-03-11 11:13:52.092003898 +0100
+@@ -44,6 +44,7 @@
+ #include <strings.h>
+ #include <string.h>
+ #include <time.h>
++#include <arpa/inet.h>
+ 
+ #include "vtun.h"
+ #include "linkfd.h"
+@@ -95,11 +96,19 @@
+ static char * pkey;
+ static char * iv_buf;
+ 
+-static EVP_CIPHER_CTX ctx_enc;	/* encrypt */
+-static EVP_CIPHER_CTX ctx_dec;	/* decrypt */
++static EVP_CIPHER_CTX *ctx_enc;	/* encrypt */
++static EVP_CIPHER_CTX *ctx_dec;	/* decrypt */
+ 
+-static EVP_CIPHER_CTX ctx_enc_ecb;	/* sideband ecb encrypt */
+-static EVP_CIPHER_CTX ctx_dec_ecb;	/* sideband ecb decrypt */
++static EVP_CIPHER_CTX *ctx_enc_ecb;	/* sideband ecb encrypt */
++static EVP_CIPHER_CTX *ctx_dec_ecb;	/* sideband ecb decrypt */
++
++void allocateSSL(void)
++{
++   ctx_enc = EVP_CIPHER_CTX_new();
++   ctx_dec = EVP_CIPHER_CTX_new();
++   ctx_enc_ecb = EVP_CIPHER_CTX_new();
++   ctx_dec_ecb = EVP_CIPHER_CTX_new();
++}
+ 
+ static int send_msg(int len, char *in, char **out);
+ static int recv_msg(int len, char *in, char **out);
+@@ -182,15 +191,15 @@
+          keysize = 32;
+          sb_init = 1;
+          cipher_type = EVP_aes_256_ecb();
+-         pctx_enc = &ctx_enc_ecb;
+-         pctx_dec = &ctx_dec_ecb;
++         pctx_enc = ctx_enc_ecb;
++         pctx_dec = ctx_dec_ecb;
+       break;
+       
+       case VTUN_ENC_AES256ECB:
+          blocksize = 16;
+          keysize = 32;
+-         pctx_enc = &ctx_enc;
+-         pctx_dec = &ctx_dec;
++         pctx_enc = ctx_enc;
++         pctx_dec = ctx_dec;
+          cipher_type = EVP_aes_256_ecb();
+          strcpy(cipher_name,"AES-256-ECB");
+       break;      
+@@ -201,14 +210,14 @@
+          keysize = 16;
+          sb_init=1;
+          cipher_type = EVP_aes_128_ecb();
+-         pctx_enc = &ctx_enc_ecb;
+-         pctx_dec = &ctx_dec_ecb;
++         pctx_enc = ctx_enc_ecb;
++         pctx_dec = ctx_dec_ecb;
+       break;
+       case VTUN_ENC_AES128ECB:
+          blocksize = 16;
+          keysize = 16;
+-         pctx_enc = &ctx_enc;
+-         pctx_dec = &ctx_dec;
++         pctx_enc = ctx_enc;
++         pctx_dec = ctx_dec;
+          cipher_type = EVP_aes_128_ecb();
+          strcpy(cipher_name,"AES-128-ECB");
+       break;
+@@ -221,16 +230,16 @@
+          var_key = 1;
+          sb_init = 1;
+          cipher_type = EVP_bf_ecb();
+-         pctx_enc = &ctx_enc_ecb;
+-         pctx_dec = &ctx_dec_ecb;
++         pctx_enc = ctx_enc_ecb;
++         pctx_dec = ctx_dec_ecb;
+       break;
+ 
+       case VTUN_ENC_BF256ECB:
+          blocksize = 8;
+          keysize = 32;
+          var_key = 1;
+-         pctx_enc = &ctx_enc;
+-         pctx_dec = &ctx_dec;
++         pctx_enc = ctx_enc;
++         pctx_dec = ctx_dec;
+          cipher_type = EVP_bf_ecb();
+          strcpy(cipher_name,"Blowfish-256-ECB");
+       break;
+@@ -243,16 +252,16 @@
+          var_key = 1;
+          sb_init = 1;
+          cipher_type = EVP_bf_ecb();
+-         pctx_enc = &ctx_enc_ecb;
+-         pctx_dec = &ctx_dec_ecb;
++         pctx_enc = ctx_enc_ecb;
++         pctx_dec = ctx_dec_ecb;
+       break;
+       case VTUN_ENC_BF128ECB: /* blowfish 128 ecb is the default */
+       default:
+          blocksize = 8;
+          keysize = 16;
+          var_key = 1;
+-         pctx_enc = &ctx_enc;
+-         pctx_dec = &ctx_dec;
++         pctx_enc = ctx_enc;
++         pctx_dec = ctx_dec;
+          cipher_type = EVP_bf_ecb();
+          strcpy(cipher_name,"Blowfish-128-ECB");
+       break;
+@@ -294,10 +303,10 @@
+    lfd_free(enc_buf); enc_buf = NULL;
+    lfd_free(dec_buf); dec_buf = NULL;
+ 
+-   EVP_CIPHER_CTX_cleanup(&ctx_enc);
+-   EVP_CIPHER_CTX_cleanup(&ctx_dec);
+-   EVP_CIPHER_CTX_cleanup(&ctx_enc_ecb);
+-   EVP_CIPHER_CTX_cleanup(&ctx_dec_ecb);
++   EVP_CIPHER_CTX_cleanup(ctx_enc);
++   EVP_CIPHER_CTX_cleanup(ctx_dec);
++   EVP_CIPHER_CTX_cleanup(ctx_enc_ecb);
++   EVP_CIPHER_CTX_cleanup(ctx_dec_ecb);
+ 
+    return 0;
+ }
+@@ -323,7 +332,7 @@
+    outlen=len+pad;
+    if (pad == blocksize)
+       RAND_bytes(in_ptr+len, blocksize-1);
+-   EVP_EncryptUpdate(&ctx_enc, out_ptr, &outlen, in_ptr, len+pad);
++   EVP_EncryptUpdate(ctx_enc, out_ptr, &outlen, in_ptr, len+pad);
+    *out = enc_buf;
+ 
+    sequence_num++;
+@@ -343,7 +352,7 @@
+ 
+    outlen=len;
+    if (!len) return 0;
+-   EVP_DecryptUpdate(&ctx_dec, out_ptr, &outlen, in_ptr, len);
++   EVP_DecryptUpdate(ctx_dec, out_ptr, &outlen, in_ptr, len);
+    recv_ib_mesg(&outlen, &out_ptr);
+    if (!outlen) return 0;
+    tmp_ptr = out_ptr + outlen; tmp_ptr--;
+@@ -431,13 +440,13 @@
+       break;
+    } /* switch(cipher) */
+ 
+-   EVP_CIPHER_CTX_init(&ctx_enc);
+-   EVP_EncryptInit_ex(&ctx_enc, cipher_type, NULL, NULL, NULL);
++   EVP_CIPHER_CTX_init(ctx_enc);
++   EVP_EncryptInit_ex(ctx_enc, cipher_type, NULL, NULL, NULL);
+    if (var_key)
+-      EVP_CIPHER_CTX_set_key_length(&ctx_enc, keysize);
+-   EVP_EncryptInit_ex(&ctx_enc, NULL, NULL, pkey, NULL);
+-   EVP_EncryptInit_ex(&ctx_enc, NULL, NULL, NULL, iv);
+-   EVP_CIPHER_CTX_set_padding(&ctx_enc, 0);
++      EVP_CIPHER_CTX_set_key_length(ctx_enc, keysize);
++   EVP_EncryptInit_ex(ctx_enc, NULL, NULL, pkey, NULL);
++   EVP_EncryptInit_ex(ctx_enc, NULL, NULL, NULL, iv);
++   EVP_CIPHER_CTX_set_padding(ctx_enc, 0);
+    if (enc_init_first_time)
+    {
+       sprintf(tmpstr,"%s encryption initialized", cipher_name);
+@@ -521,13 +530,13 @@
+       break;
+    } /* switch(cipher) */
+ 
+-   EVP_CIPHER_CTX_init(&ctx_dec);
+-   EVP_DecryptInit_ex(&ctx_dec, cipher_type, NULL, NULL, NULL);
++   EVP_CIPHER_CTX_init(ctx_dec);
++   EVP_DecryptInit_ex(ctx_dec, cipher_type, NULL, NULL, NULL);
+    if (var_key)
+-      EVP_CIPHER_CTX_set_key_length(&ctx_dec, keysize);
+-   EVP_DecryptInit_ex(&ctx_dec, NULL, NULL, pkey, NULL);
+-   EVP_DecryptInit_ex(&ctx_dec, NULL, NULL, NULL, iv);
+-   EVP_CIPHER_CTX_set_padding(&ctx_dec, 0);
++      EVP_CIPHER_CTX_set_key_length(ctx_dec, keysize);
++   EVP_DecryptInit_ex(ctx_dec, NULL, NULL, pkey, NULL);
++   EVP_DecryptInit_ex(ctx_dec, NULL, NULL, NULL, iv);
++   EVP_CIPHER_CTX_set_padding(ctx_dec, 0);
+    if (dec_init_first_time)
+    {
+       sprintf(tmpstr,"%s decryption initialized", cipher_name);
+@@ -559,7 +568,7 @@
+ 
+          in_ptr = in - blocksize*2;
+          outlen = blocksize*2;
+-         EVP_EncryptUpdate(&ctx_enc_ecb, in_ptr, 
++         EVP_EncryptUpdate(ctx_enc_ecb, in_ptr, 
+             &outlen, in_ptr, blocksize*2);
+          *out = in_ptr;
+          len = outlen;
+@@ -586,7 +595,7 @@
+          in_ptr = in;
+          iv = malloc(blocksize);
+          outlen = blocksize*2;
+-         EVP_DecryptUpdate(&ctx_dec_ecb, in_ptr, &outlen, in_ptr, blocksize*2);
++         EVP_DecryptUpdate(ctx_dec_ecb, in_ptr, &outlen, in_ptr, blocksize*2);
+          
+          if ( !strncmp(in_ptr, "ivec", 4) )
+          {
+@@ -629,7 +638,7 @@
+                if (cipher_enc_state != CIPHER_INIT)
+                {
+                   cipher_enc_state = CIPHER_INIT;
+-                  EVP_CIPHER_CTX_cleanup(&ctx_enc);
++                  EVP_CIPHER_CTX_cleanup(ctx_enc);
+ #ifdef LFD_ENCRYPT_DEBUG
+                   vtun_syslog(LOG_INFO, 
+                      "Forcing local encryptor re-init");
+@@ -710,7 +719,7 @@
+          if (cipher_enc_state != CIPHER_INIT)
+          {
+             cipher_enc_state = CIPHER_INIT;
+-            EVP_CIPHER_CTX_cleanup(&ctx_enc);
++            EVP_CIPHER_CTX_cleanup(ctx_enc);
+          }
+ #ifdef LFD_ENCRYPT_DEBUG
+          vtun_syslog(LOG_INFO, "Remote requests encryptor re-init");
+@@ -724,7 +733,7 @@
+              cipher_enc_state != CIPHER_REQ_INIT &&
+              cipher_enc_state != CIPHER_INIT)
+          {
+-            EVP_CIPHER_CTX_cleanup (&ctx_dec);
++            EVP_CIPHER_CTX_cleanup (ctx_dec);
+             cipher_dec_state = CIPHER_INIT;
+             cipher_enc_state = CIPHER_REQ_INIT;
+          }
+diff -Naur vtun-3.0.4/lfd_shaper.c vtun-3.0.4-updated/lfd_shaper.c
+--- vtun-3.0.4/lfd_shaper.c	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/lfd_shaper.c	2026-03-11 11:13:52.092226983 +0100
+@@ -27,6 +27,7 @@
+ #include <stdlib.h>
+ #include <sys/time.h>
+ #include <syslog.h>
++#include <time.h>
+ 
+ #include "vtun.h"
+ #include "linkfd.h"
+diff -Naur vtun-3.0.4/lib.c vtun-3.0.4-updated/lib.c
+--- vtun-3.0.4/lib.c	2016-10-01 23:46:01.000000000 +0200
++++ vtun-3.0.4-updated/lib.c	2026-03-11 11:14:23.673222903 +0100
+@@ -34,6 +34,7 @@
+ #include <sys/wait.h>
+ #include <syslog.h>
+ #include <errno.h>
++#include <time.h>
+ 
+ #include "vtun.h"
+ #include "linkfd.h"
+diff -Naur vtun-3.0.4/lib.h vtun-3.0.4-updated/lib.h
+--- vtun-3.0.4/lib.h	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/lib.h	2026-03-11 11:13:52.092330407 +0100
+@@ -26,6 +26,7 @@
+ #include <sys/types.h>
+ #include <signal.h>
+ #include <errno.h>
++#include <unistd.h>
+ 
+ #ifdef HAVE_LIBUTIL_H
+ #include <libutil.h>
+diff -Naur vtun-3.0.4/lock.c vtun-3.0.4-updated/lock.c
+--- vtun-3.0.4/lock.c	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/lock.c	2026-03-11 11:13:52.092433230 +0100
+@@ -32,6 +32,7 @@
+ #include <sys/types.h>
+ #include <signal.h>
+ #include <errno.h>
++#include <time.h>
+ 
+ #include "vtun.h"
+ #include "linkfd.h"
+diff -Naur vtun-3.0.4/main.c vtun-3.0.4-updated/main.c
+--- vtun-3.0.4/main.c	2016-10-01 23:37:39.000000000 +0200
++++ vtun-3.0.4-updated/main.c	2026-03-11 11:13:52.092537679 +0100
+@@ -62,6 +62,9 @@
+ 
+ int main(int argc, char *argv[], char *env[])
+ {
++#ifdef HAVE_SSL
++     void allocateSSL(void);
++#endif
+      int svr, daemon, sock, fd, opt;
+ #if defined(HAVE_WORKING_FORK) || defined(HAVE_WORKING_VFORK)
+      int dofork;
+diff -Naur vtun-3.0.4/vtun.h vtun-3.0.4-updated/vtun.h
+--- vtun-3.0.4/vtun.h	2016-10-01 23:27:51.000000000 +0200
++++ vtun-3.0.4-updated/vtun.h	2026-03-11 11:13:52.092648628 +0100
+@@ -232,6 +232,7 @@
+ int  tunnel(struct vtun_host *host);
+ int  read_config(char *file);
+ struct vtun_host * find_host(char *host);
+-inline void clear_nat_hack_flags(int svr);
++void clear_nat_hack_flags(int svr);
++void allocateSSL(void);
+ 
+ #endif
