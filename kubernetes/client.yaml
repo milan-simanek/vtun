@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: vtun
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vtun-client
+  template:
+    metadata:
+      labels:
+        app: vtun-client
+    spec:
+      containers:
+      - name: vtun
+        args: 
+        - "-p"
+        - "example"
+        - "SERVERIP"
+        image: milansimanek/vtun:v1
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /etc/vtund.conf
+          subPath: vtund-client.conf
+          name: conf
+      hostNetwork: true
+      restartPolicy: Always  
+      volumes:
+      - name: conf
+        secret:
+          secretName: config
+

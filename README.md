@@ -7,6 +7,7 @@ This project is (still) not a fork. We provide the following:
 
 - patch applicable to original vtun software version 3.0.4 to be able to compile.
 - Dockerfile which compiles from source and builds an image suitable to run vtund in a container
+- kubernetes deployment example
 
 ## patch details
 - missing some include system header files (for functions htonl, nanosleep, getpt)
@@ -29,3 +30,14 @@ The container is expected to mount the real config as a volume under ``/etc/vtun
   Finally, the connection should be established.
 - open a new terminal and run ``ip link`` or ``ifconfig`` to verify there are 2 new network interfaces
   ``vtun-server`` and ``vtun-client``, they are up and they have IP addresses assigned.
+
+## vtun on Kubernetes
+This project provides also a proof that vtun can run also in Kubernetes
+cluster as a pod. All files needed are located in
+[``kubernetes``](kubernetes/) subdirectory. Just run [``deploy-server.sh``](kubernetes/deploy-server.sh)
+on kubernetes where you want to deploy a vtun server. Then run
+[``deploy-client.sh``](kubernetes/deploy-client.sh) on kubernetes where the
+client should run. ``deploy-client.sh`` script requires IP address of the
+server as a parameter. Note, that server should configure a firewall (if you
+have one) to accept connections to default port TCP/5000. You can do it by command:
+```iptables -I INPUT -p tcp --dport 5000 -j ACCEPT```

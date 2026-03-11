@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: vtun
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vtun-server
+  template:
+    metadata:
+      labels:
+        app: vtun-server
+    spec:
+      containers:
+      - name: vtun
+        image: milansimanek/vtun:v1
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /etc/vtund.conf
+          subPath: vtund-server.conf
+          name: conf
+      hostNetwork: true
+      restartPolicy: Always  
+      volumes:
+      - name: conf
+        secret:
+          secretName: config
+
