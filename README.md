@@ -23,3 +23,9 @@ Containers brings many benefits:
 
 The container is expected to mount the real config as a volume under ``/etc/vtund.conf``.
 
+## Testing **vtun** in a container
+- open a new terminal and run script [``server-test.sh``](server-test.sh). You can see the server instance messages.
+- open a new terminal and run script [``client-test.sh``](client-test.sh). You can see how client is trying to connect the server.
+  Finally, the connection should be established.
+- open a new terminal and run ``ip link`` or ``ifconfig`` to verify there are 2 new network interfaces
+  ``vtun-server`` and ``vtun-client``, they are up and they have IP addresses assigned.
